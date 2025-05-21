@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import './App.css';
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = 'http://localhost:3001/api';
 
@@ -11,6 +12,7 @@ function UploadPage() {
   const [serverStatus, setServerStatus] = useState('online')
   const [shareLink, setShareLink] = useState(null)
   const [copied, setCopied] = useState(false)
+  const navigate = useNavigate();
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
@@ -26,14 +28,28 @@ function UploadPage() {
     if (serverStatus !== 'online') {
       throw new Error('Server is niet beschikbaar');
     }
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     try {
       const response = await fetch(`${API_URL}/upload`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          navigate('/login');
+          return;
+        }
         throw new Error('Upload failed');
       }
       const data = await response.json();
@@ -67,7 +83,7 @@ function UploadPage() {
     } finally {
       setUploading(false);
     }
-  }, [serverStatus]);
+  }, [serverStatus, navigate]);
 
   const handleFileSelect = useCallback(async (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -91,7 +107,7 @@ function UploadPage() {
     } finally {
       setUploading(false);
     }
-  }, [serverStatus]);
+  }, [serverStatus, navigate]);
 
   const handleRemoveFile = (index) => {
     setFiles(files => files.filter((_, i) => i !== index));
@@ -150,7 +166,7 @@ function UploadPage() {
                     <li key={index} className="file-item">
                       <div className="file-row">
                         <span className="file-name">{file.name}</span>
-                        <span className="file-size">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                        <span className="file-size">{file.size ? (file.size / 1024 / 1024).toFixed(2) : '0.00'} MB</span>
                         <button className="remove-button" onClick={() => handleRemoveFile(index)} title="Verwijder bestand">✕</button>
                       </div>
                     </li>
