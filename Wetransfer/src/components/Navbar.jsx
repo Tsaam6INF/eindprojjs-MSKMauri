@@ -1,16 +1,47 @@
+/**
+ * Navbar Component
+ * 
+ * Een navigatiebalk component die de hoofdnavigatie van de applicatie verzorgt.
+ * De navbar toont verschillende elementen afhankelijk van de authenticatiestatus van de gebruiker:
+ * 
+ * Niet ingelogd:
+ * - Logo/naam van de applicatie
+ * - Inloggen knop
+ * - Registreren knop
+ * 
+ * Ingelogd:
+ * - Logo/naam van de applicatie
+ * - Gebruikersmenu met:
+ *   - Gebruikersinitiaal in een cirkel
+ *   - Gebruikersnaam
+ *   - Dropdown menu met:
+ *     - Dashboard link
+ *     - Upload Bestand link
+ *     - Uitloggen knop
+ */
+
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  // State voor het tonen/verbergen van het gebruikersmenu
   const [showMenu, setShowMenu] = useState(false);
+  // State voor het opslaan van de gebruikersnaam
   const [username, setUsername] = useState('');
 
+  // Laad de gebruikersnaam uit localStorage bij het mounten van de component
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
     setUsername(storedUsername);
   }, []);
 
+  /**
+   * Handelt het uitloggen af:
+   * - Verwijdert token en gebruikersnaam uit localStorage
+   * - Reset de gebruikersnaam state
+   * - Navigeert naar de login pagina
+   */
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
@@ -22,23 +53,28 @@ const Navbar = () => {
     <nav className="bg-white shadow-lg fixed w-full top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between h-16">
+          {/* Logo/naam sectie */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
               <span className="text-xl font-bold text-gray-800">WeTransfer Clone</span>
             </Link>
           </div>
 
+          {/* Authenticatie sectie */}
           <div className="flex items-center">
             {username ? (
+              // Ingelogde gebruiker menu
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
                   className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none"
                 >
+                  {/* Gebruikersinitiaal in cirkel */}
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white">
                     {username.charAt(0).toUpperCase()}
                   </div>
                   <span className="text-sm font-medium">{username}</span>
+                  {/* Dropdown pijl */}
                   <svg
                     className={`h-5 w-5 transition-transform ${showMenu ? 'transform rotate-180' : ''}`}
                     fill="none"
@@ -49,8 +85,10 @@ const Navbar = () => {
                   </svg>
                 </button>
 
+                {/* Dropdown menu */}
                 {showMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                    {/* Dashboard link */}
                     <Link
                       to="/dashboard"
                       className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -61,6 +99,7 @@ const Navbar = () => {
                       </svg>
                       Dashboard
                     </Link>
+                    {/* Upload link */}
                     <Link
                       to="/"
                       className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -71,6 +110,7 @@ const Navbar = () => {
                       </svg>
                       Upload Bestand
                     </Link>
+                    {/* Uitloggen knop */}
                     <button
                       onClick={() => {
                         handleLogout();
@@ -87,6 +127,7 @@ const Navbar = () => {
                 )}
               </div>
             ) : (
+              // Niet ingelogde gebruiker knoppen
               <div className="flex space-x-4">
                 <Link
                   to="/login"
