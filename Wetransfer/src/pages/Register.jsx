@@ -61,8 +61,8 @@ const Register = () => {
       }
 
       // Sla authenticatiegegevens op
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('username', username);
+      sessionStorage.setItem('token', data.token);
+      sessionStorage.setItem('username', username);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);

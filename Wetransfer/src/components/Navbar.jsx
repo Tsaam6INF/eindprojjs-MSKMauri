@@ -30,21 +30,21 @@ const Navbar = () => {
   // State voor het opslaan van de gebruikersnaam
   const [username, setUsername] = useState('');
 
-  // Laad de gebruikersnaam uit localStorage bij het mounten van de component
+  // Laad de gebruikersnaam uit sessionStorage bij het mounten van de component
   useEffect(() => {
-    const storedUsername = localStorage.getItem('username');
+    const storedUsername = sessionStorage.getItem('username');
     setUsername(storedUsername);
   }, []);
 
   /**
    * Handelt het uitloggen af:
-   * - Verwijdert token en gebruikersnaam uit localStorage
+   * - Verwijdert token en gebruikersnaam uit sessionStorage
    * - Reset de gebruikersnaam state
    * - Navigeert naar de login pagina
    */
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('username');
     setUsername('');
     navigate('/login');
   };

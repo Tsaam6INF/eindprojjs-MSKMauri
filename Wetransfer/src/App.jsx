@@ -19,14 +19,14 @@ import UpgradePage from './pages/UpgradePage';
  * ProtectedRoute Component
  * 
  * Een wrapper component die routes beschermt tegen niet-geauthenticeerde gebruikers.
- * Als er geen token in localStorage gevonden wordt, wordt de gebruiker doorgestuurd naar de login pagina.
+ * Als er geen token in sessionStorage gevonden wordt, wordt de gebruiker doorgestuurd naar de login pagina.
  * 
  * @param {Object} props - Component props
  * @param {React.ReactNode} props.children - De te renderen component als de gebruiker geauthenticeerd is
  * @returns {React.ReactNode} De beschermde route of een redirect naar login
  */
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!token) {
     return <Navigate to="/login" replace />;
   }

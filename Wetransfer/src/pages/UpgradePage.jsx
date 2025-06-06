@@ -25,7 +25,7 @@ const UpgradePage = () => {
       const response = await fetch('http://localhost:3001/api/user/upgrade', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
         },
       });
 

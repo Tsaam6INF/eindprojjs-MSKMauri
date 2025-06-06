@@ -26,7 +26,7 @@ const Dashboard = () => {
       try {
         const response = await fetch('http://localhost:3001/api/files', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
           },
         });
 
@@ -56,7 +56,7 @@ const Dashboard = () => {
       const response = await fetch(`http://localhost:3001/api/files/${fileId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
         },
       });
 
