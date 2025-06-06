@@ -7,9 +7,11 @@
  * - Voortgangsindicatie tijdens upload
  * - Foutafhandeling
  * - Automatische navigatie naar dashboard na succesvolle upload
+ * - Bestandsgrootte limiet indicatie
+ * - Upgrade optie naar Pro plan
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 
@@ -17,7 +19,27 @@ const UploadPage = () => {
   // State voor upload status en foutmeldingen
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [isPro, setIsPro] = useState(false);
   const navigate = useNavigate();
+
+  // Haal pro status op bij component mount
+  useEffect(() => {
+    const checkProStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/user/status', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        const data = await response.json();
+        setIsPro(data.isPro);
+      } catch (err) {
+        console.error('Fout bij ophalen pro status:', err);
+      }
+    };
+
+    checkProStatus();
+  }, []);
 
   /**
    * Handelt het uploaden van bestanden af:
@@ -46,8 +68,10 @@ const UploadPage = () => {
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Upload mislukt');
+        throw new Error(data.error || 'Upload mislukt');
       }
 
       navigate('/dashboard');
@@ -72,6 +96,17 @@ const UploadPage = () => {
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {error}
+          {error.includes('te groot') && !isPro && (
+            <div className="mt-2">
+              <p className="font-semibold">Upgrade naar Pro voor grotere bestanden!</p>
+              <button
+                onClick={() => navigate('/upgrade')}
+                className="mt-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Upgrade naar Pro
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -89,7 +124,22 @@ const UploadPage = () => {
         ) : (
           <div>
             <p className="text-gray-600 mb-2">Sleep een bestand hierheen of klik om te selecteren</p>
-            <p className="text-sm text-gray-500">Ondersteunde formaten: Alle bestandstypen</p>
+            <p className="text-sm text-gray-500">
+              Maximum bestandsgrootte: {isPro ? '5GB' : '500MB'}
+              {!isPro && (
+                <span className="ml-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/upgrade');
+                    }}
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Upgrade naar Pro voor 5GB
+                  </button>
+                </span>
+              )}
+            </p>
           </div>
         )}
       </div>

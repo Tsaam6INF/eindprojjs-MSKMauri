@@ -7,12 +7,13 @@
  * - Navigatie tussen upload en dashboard pagina's
  */
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import UploadPage from './pages/UploadPage';
+import UpgradePage from './pages/UpgradePage';
 
 /**
  * ProtectedRoute Component
@@ -34,27 +35,30 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8 mt-16">
-          <Routes>
-            <Route path="/" element={
-              <ProtectedRoute>
-                <UploadPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-          </Routes>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="container mx-auto px-4 py-8 mt-16">
+        <Routes>
+          <Route path="/" element={
+            <ProtectedRoute>
+              <UploadPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/upgrade" element={
+            <ProtectedRoute>
+              <UpgradePage />
+            </ProtectedRoute>
+          } />
+        </Routes>
       </div>
-    </BrowserRouter>
+    </div>
   );
 }
 

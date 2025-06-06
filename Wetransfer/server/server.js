@@ -43,24 +43,29 @@ const db = new sqlite3.Database('wetransfer.db', (err) => {
   console.log('Verbonden met de SQLite database');
 });
 
-// Maak de database tabellen aan
+// Verwijder bestaande tabellen en maak ze opnieuw aan
 db.serialize(() => {
+  // Verwijder bestaande tabellen
+  db.run('DROP TABLE IF EXISTS files');
+  db.run('DROP TABLE IF EXISTS users');
+
   // Users tabel
-  db.run(`CREATE TABLE IF NOT EXISTS users (
+  db.run(`CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
+    is_pro BOOLEAN DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`, (err) => {
     if (err) {
       console.error('Fout bij aanmaken users tabel:', err.message);
     } else {
-      console.log('Users tabel aangemaakt of al bestaand');
+      console.log('Users tabel aangemaakt');
     }
   });
 
   // Files tabel
-  db.run(`CREATE TABLE IF NOT EXISTS files (
+  db.run(`CREATE TABLE files (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT NOT NULL,
     originalname TEXT NOT NULL,
@@ -73,7 +78,7 @@ db.serialize(() => {
     if (err) {
       console.error('Fout bij aanmaken files tabel:', err.message);
     } else {
-      console.log('Files tabel aangemaakt of al bestaand');
+      console.log('Files tabel aangemaakt');
     }
   });
 });
@@ -157,7 +162,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // File endpoints
-app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => {
+app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
   console.log('Upload request ontvangen:', {
     file: req.file,
     user: req.user
@@ -173,59 +178,78 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => 
     return res.status(401).json({ error: 'Unauthorized - geen geldige gebruiker' });
   }
 
-  const shareId = crypto.randomBytes(4).toString('hex');
-  
-  // Controleer of de database verbinding actief is
-  if (!db) {
-    console.error('Database verbinding is niet beschikbaar');
-    return res.status(500).json({ error: 'Database verbinding is niet beschikbaar' });
-  }
+  // Controleer bestandsgrootte limiet
+  const MAX_SIZE_FREE = 500 * 1024 * 1024; // 500MB
+  const MAX_SIZE_PRO = 5 * 1024 * 1024 * 1024; // 5GB
 
-  // Begin een transactie
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION', (err) => {
-      if (err) {
-        console.error('Fout bij starten transactie:', err);
-        return res.status(500).json({ error: 'Database transactie fout' });
-      }
+  // Haal gebruiker op om pro status te controleren
+  db.get('SELECT is_pro FROM users WHERE id = ?', [req.user.id], (err, user) => {
+    if (err) {
+      console.error('Database error bij ophalen gebruiker:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    if (!user) {
+      console.error('Gebruiker niet gevonden voor ID:', req.user.id);
+      return res.status(404).json({ error: 'Gebruiker niet gevonden' });
+    }
 
-      const query = 'INSERT INTO files (filename, originalname, size, shareId, userId) VALUES (?, ?, ?, ?, ?)';
-      const params = [req.file.filename, req.file.originalname, req.file.size, shareId, req.user.id];
-      
-      console.log('Database query:', { query, params });
+    const maxSize = user.is_pro ? MAX_SIZE_PRO : MAX_SIZE_FREE;
+    
+    if (req.file.size > maxSize) {
+      return res.status(400).json({ 
+        error: `Bestand is te groot. Maximum grootte is ${user.is_pro ? '5GB' : '500MB'}.`,
+        isPro: user.is_pro
+      });
+    }
 
-      db.run(query, params, function(err) {
+    const shareId = crypto.randomBytes(4).toString('hex');
+    
+    // Begin een transactie
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION', (err) => {
         if (err) {
-          console.error('Database error bij insert:', err);
-          db.run('ROLLBACK', (rollbackErr) => {
-            if (rollbackErr) {
-              console.error('Fout bij rollback:', rollbackErr);
-            }
-            return res.status(500).json({ 
-              error: 'Er is een fout opgetreden bij het opslaan van het bestand',
-              details: err.message 
-            });
-          });
-          return;
+          console.error('Fout bij starten transactie:', err);
+          return res.status(500).json({ error: 'Database transactie fout' });
         }
 
-        db.run('COMMIT', (commitErr) => {
-          if (commitErr) {
-            console.error('Fout bij commit:', commitErr);
-            return res.status(500).json({ error: 'Fout bij afronden transactie' });
+        const query = 'INSERT INTO files (filename, originalname, size, shareId, userId) VALUES (?, ?, ?, ?, ?)';
+        const params = [req.file.filename, req.file.originalname, req.file.size, shareId, req.user.id];
+        
+        console.log('Database query:', { query, params });
+
+        db.run(query, params, function(err) {
+          if (err) {
+            console.error('Database error bij insert:', err);
+            db.run('ROLLBACK', (rollbackErr) => {
+              if (rollbackErr) {
+                console.error('Fout bij rollback:', rollbackErr);
+              }
+              return res.status(500).json({ 
+                error: 'Er is een fout opgetreden bij het opslaan van het bestand',
+                details: err.message 
+              });
+            });
+            return;
           }
 
-          console.log('Bestand succesvol opgeslagen:', {
-            id: this.lastID,
-            shareId,
-            filename: req.file.originalname
-          });
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) {
+              console.error('Fout bij commit:', commitErr);
+              return res.status(500).json({ error: 'Fout bij afronden transactie' });
+            }
 
-          res.json({
-            id: this.lastID,
-            shareId: shareId,
-            filename: req.file.originalname,
-            size: req.file.size
+            console.log('Bestand succesvol opgeslagen:', {
+              id: this.lastID,
+              shareId,
+              filename: req.file.originalname
+            });
+
+            res.json({
+              id: this.lastID,
+              shareId: shareId,
+              filename: req.file.originalname,
+              size: req.file.size
+            });
           });
         });
       });
@@ -269,6 +293,29 @@ app.get('/api/download/:shareId', (req, res) => {
 
     const filePath = path.join(uploadsDir, file.filename);
     res.download(filePath, file.originalname);
+  });
+});
+
+// User endpoints
+app.get('/api/user/status', authenticateToken, (req, res) => {
+  db.get('SELECT is_pro FROM users WHERE id = ?', [req.user.id], (err, user) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!user) {
+      return res.status(404).json({ error: 'Gebruiker niet gevonden' });
+    }
+    res.json({ isPro: user.is_pro });
+  });
+});
+
+// Upgrade naar Pro endpoint
+app.post('/api/user/upgrade', authenticateToken, (req, res) => {
+  db.run('UPDATE users SET is_pro = 1 WHERE id = ?', [req.user.id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ message: 'Succesvol geüpgraded naar Pro!' });
   });
 });
 
